@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"orbita/profiles"
 	"strings"
 	"sync"
 
@@ -23,19 +24,15 @@ var hopHeaders = map[string]bool{
 	"Upgrade":             true,
 }
 
-type RewriteRule struct {
-	From string
-	To   string
-}
-
 type Proxy struct {
-	server *http.Server
-	ln     net.Listener
-	rules  []RewriteRule
-	mu     sync.RWMutex
+	server  *http.Server
+	ln      net.Listener
+	rules   []profiles.RewriteRule
+	headers map[string]string
+	mu      sync.RWMutex
 }
 
-func New(rules []RewriteRule) *Proxy {
+func New(rules []profiles.RewriteRule) *Proxy {
 	return &Proxy{
 		rules: rules,
 	}
@@ -67,15 +64,22 @@ func (p *Proxy) Addr() string {
 	return p.ln.Addr().String()
 }
 
-func (p *Proxy) SetRules(rules []RewriteRule) {
+func (p *Proxy) SetRules(rules []profiles.RewriteRule) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.rules = rules
 }
-func (p *Proxy) GetRules() []RewriteRule {
+
+func (p *Proxy) GetRules() []profiles.RewriteRule {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.rules
+}
+
+func (p *Proxy) SetHeaders(headers map[string]string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.headers = headers
 }
 
 func (p *Proxy) handle(w http.ResponseWriter, r *http.Request) {
@@ -114,6 +118,14 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	copyHeaders(outReq.Header, r.Header)
+
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	for k, v := range p.headers {
+		outReq.Header.Set(k, v)
+	}
+
 	outReq.Host = targetURL.Host
 	res, err := http.DefaultTransport.RoundTrip(outReq)
 	if err != nil {
@@ -121,7 +133,9 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer res.Body.Close()
+
 	copyHeaders(w.Header(), res.Header)
+
 	w.WriteHeader(res.StatusCode)
 	io.Copy(w, res.Body)
 }
@@ -150,6 +164,13 @@ func (p *Proxy) handleWS(w http.ResponseWriter, r *http.Request) {
 		case "upgrade", "connection", "sec-websocket-key", "sec-websocket-version", "sec-websocket-extensions":
 		default:
 			fwdHeaders[k] = v
+		}
+	}
+	for k, v := range p.headers {
+		switch strings.ToLower(k) {
+		case "upgrade", "connection", "sec-websocket-key", "sec-websocket-version", "sec-websocket-extensions":
+		default:
+			fwdHeaders[k] = []string{v}
 		}
 	}
 	serverConn, _, err := websocket.DefaultDialer.Dial(targetURL.String(), fwdHeaders)

@@ -89,6 +89,7 @@ func (a *App) startup(ctx context.Context) {
 // shut down
 func (a *App) shutdown(ctx context.Context) {
 	a.proxy.Stop()
+	a.recorder.Close()
 }
 
 // IPC methods

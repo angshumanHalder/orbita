@@ -7,20 +7,25 @@ import {
   GetProxyAddr,
   OpenInChrome,
   SetActiveEnv,
+  StartRecording,
+  StopRecording,
 } from "wailsjs/go/main/App";
 import { EnvSelector } from "./components/EnvSelector";
 import { Button } from "./components/ui/button";
-import { Globe } from "lucide-react";
+import { Circle, Globe, Square } from "lucide-react";
 import { RequestLog } from "./components/RequestLog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { MockManager } from "./components/MockManager";
 import { ConfigPanel } from "./components/ConfigPanel";
+import { TestOutputDialog } from "./components/TestOutputDialog";
 
 function App() {
   const [envs, setEnvs] = useState<profiles.Environment[]>([]);
   const [activeEnvName, setActiveEnvName] = useState("");
   const [activeEnv, setActiveEnv] = useState<profiles.Environment | null>(null);
   const [proxyAddr, setProxyAddr] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [testOutput, setTestOutput] = useState("");
 
   const loadEnvs = async () => {
     try {
@@ -62,6 +67,16 @@ function App() {
     }
   };
 
+  const handleToggleRecording = async () => {
+    if (isRecording) {
+      const output = await StopRecording();
+      setTestOutput(output);
+    } else {
+      await StartRecording();
+    }
+    setIsRecording(!isRecording);
+  };
+
   useEffect(() => {
     loadEnvs();
   }, []);
@@ -78,6 +93,13 @@ function App() {
         <div className="flex-1 text-sm text-muted-foreground font-mono ms-4">
           Proxy: {proxyAddr}
         </div>
+        <Button
+          variant={isRecording ? "destructive" : "outline"}
+          onClick={handleToggleRecording}
+        >
+          {isRecording ? <Square /> : <Circle />}
+          {isRecording ? "Stop" : "Record"}
+        </Button>
         <Button
           className="cursor-pointer"
           variant="outline"
@@ -114,6 +136,13 @@ function App() {
           />
         </TabsContent>
       </Tabs>
+      <TestOutputDialog
+        open={!!testOutput}
+        content={testOutput}
+        onOpenChange={(open: boolean) => {
+          if (!open) setTestOutput("");
+        }}
+      />
     </div>
   );
 }

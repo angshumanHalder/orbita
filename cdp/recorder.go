@@ -3,12 +3,15 @@ package cdp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/runtime"
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 )
 
@@ -46,6 +49,15 @@ const (
 )
 
 const jsScript = `(function() {
+	console.log('__orbita__' + JSON.stringify({ type: 'navigation', url: window.location.href }));
+	var _push = history.pushState.bind(history)
+		history.pushState = function(state, title, url) {
+		_push(state, title, url);
+		console.log('__orbita__' + JSON.stringify({ type: 'navigation', url: url || window.location.href }));
+	}
+	window.addEventListener('popstate', function() {
+    	console.log('__orbita__' + JSON.stringify({ type: 'navigation', url: window.location.href }));
+	})
 	function sel(el) {
 		if (el.id) return '#' + el.id;
 		if (el.dataset && el.dataset.testid) return '[data-testid="' + el.dataset.testid + '"]';
@@ -59,7 +71,7 @@ const jsScript = `(function() {
 		let masked = e.target.type === 'password';
 		console.log('__orbita__' + JSON.stringify({ type: 'input', selector: sel(e.target), value: masked ? '' : e.target.value, masked: masked }));
 	});
-}()`
+}())`
 
 type Event struct {
 	Type       EventType
@@ -72,13 +84,13 @@ type Event struct {
 
 type RecordSession struct {
 	Events []Event
-	mu     sync.Mutex
+	mu     sync.RWMutex
 }
 
 type Recorder struct {
 	session *RecordSession
 	cancel  context.CancelFunc
-	mu      sync.Mutex
+	mu      sync.RWMutex
 }
 
 func NewRecorder() *Recorder {
@@ -91,46 +103,81 @@ func (r *Recorder) Start() error {
 	if r.session != nil {
 		return nil
 	}
-	allocCtx, _ := chromedp.NewRemoteAllocator(context.Background(), "ws://localhost:9222")
-	ctx, cancel := chromedp.NewContext(allocCtx)
+	allocCtx, cancel := chromedp.NewRemoteAllocator(context.Background(), "ws://localhost:9222")
 
+	var tabID string
+	if resp, err := http.Get("http://localhost:9222/json"); err == nil {
+		var tabs []struct {
+			ID   string `json:"id"`
+			URL  string `json:"url"`
+			Type string `json:"type"`
+		}
+		json.NewDecoder(resp.Body).Decode(&tabs)
+		resp.Body.Close()
+		for _, t := range tabs {
+			if t.Type == "page" && t.URL != "" && t.URL != "about:blank" {
+				tabID = t.ID
+				break
+			}
+		}
+	}
 	r.session = &RecordSession{}
+
+	var ctx context.Context
+	if tabID != "" {
+		ctx, cancel = chromedp.NewContext(allocCtx, chromedp.WithTargetID(target.ID(tabID)))
+	} else {
+		ctx, cancel = chromedp.NewContext(allocCtx)
+	}
 	r.cancel = cancel
 
 	chromedp.ListenTarget(ctx, func(ev any) {
+		r.mu.RLock()
+		sess := r.session
+		r.mu.RUnlock()
+		if sess == nil {
+			return
+		}
 		switch e := ev.(type) {
-		case *page.EventFrameNavigated:
-			if e.Frame.ParentID == "" { // top-level frame only
-				r.session.mu.Lock()
-				r.session.Events = append(r.session.Events, Event{
-					Type:       EventNavigation,
-					Timestamp:  time.Now().UnixMilli(),
-					Navigation: &NavigationEvent{URL: e.Frame.URL},
-				})
-				r.session.mu.Unlock()
-			}
 		case *runtime.EventConsoleAPICalled:
-			r.handleConsoleEvent(e)
+			r.handleConsoleEvent(sess, e)
 		}
 	})
 
-	go chromedp.Run(ctx, runtime.Enable(), page.Enable(), chromedp.ActionFunc(func(ctx context.Context) error {
-		_, err := page.AddScriptToEvaluateOnNewDocument(jsScript).Do(ctx)
-		return err
-	}))
+	go func() {
+		if err := chromedp.Run(ctx,
+			runtime.Enable(),
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				_, err := page.AddScriptToEvaluateOnNewDocument(jsScript).Do(ctx)
+				return err
+			}),
+			chromedp.ActionFunc(func(ctx context.Context) error {
+				_, _, err := runtime.Evaluate(jsScript).Do(ctx)
+				return err
+			}),
+		); err != nil {
+			fmt.Println("cdp run error:", err)
+		}
+	}()
 	return nil
 }
 
 func (r *Recorder) Stop() *RecordSession {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	s := r.session
+	r.session = nil
+	return s
+}
+
+func (r *Recorder) Close() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	if r.cancel != nil {
 		r.cancel()
 		r.cancel = nil
 	}
-	s := r.session
 	r.session = nil
-	return s
 }
 
 func (r *Recorder) AddNetworkEvent(e NetworkEvent) {
@@ -148,7 +195,7 @@ func (r *Recorder) AddNetworkEvent(e NetworkEvent) {
 	})
 }
 
-func (r *Recorder) handleConsoleEvent(e *runtime.EventConsoleAPICalled) {
+func (r *Recorder) handleConsoleEvent(sess *RecordSession, e *runtime.EventConsoleAPICalled) {
 	if len(e.Args) == 0 {
 		return
 	}
@@ -165,12 +212,19 @@ func (r *Recorder) handleConsoleEvent(e *runtime.EventConsoleAPICalled) {
 	}
 
 	typ, _ := m["type"].(string)
-	r.session.mu.Lock()
-	defer r.session.mu.Unlock()
+	sess.mu.Lock()
+	defer sess.mu.Unlock()
 
 	switch typ {
+	case "navigation":
+		url, _ := m["url"].(string)
+		sess.Events = append(sess.Events, Event{
+			Type:       EventNavigation,
+			Timestamp:  time.Now().UnixMilli(),
+			Navigation: &NavigationEvent{URL: url},
+		})
 	case "click":
-		r.session.Events = append(r.session.Events, Event{
+		sess.Events = append(sess.Events, Event{
 			Type:      EventClick,
 			Timestamp: time.Now().UnixMilli(),
 			Click: &ClickEvent{
@@ -180,7 +234,7 @@ func (r *Recorder) handleConsoleEvent(e *runtime.EventConsoleAPICalled) {
 			},
 		})
 	case "input":
-		r.session.Events = append(r.session.Events, Event{
+		sess.Events = append(sess.Events, Event{
 			Type:      EventInput,
 			Timestamp: time.Now().UnixMilli(),
 			Input: &InputEvent{

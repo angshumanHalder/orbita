@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"orbita/cdp"
 	"orbita/profiles"
 	"orbita/proxy"
 	"os"
@@ -18,13 +19,15 @@ type App struct {
 	proxy     *proxy.Proxy
 	store     *profiles.ProfileStore
 	envConfig *profiles.EnvConfig
+	recorder  *cdp.Recorder
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
 	p := proxy.New(nil)
 	return &App{
-		proxy: p,
+		proxy:    p,
+		recorder: cdp.NewRecorder(),
 	}
 }
 
@@ -33,6 +36,15 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.proxy.SetContext(ctx)
+	a.proxy.SetNetworkHook(func(method, url string, status int, body, contentType string) {
+		a.recorder.AddNetworkEvent(cdp.NetworkEvent{
+			Method:      method,
+			URL:         url,
+			Status:      status,
+			Body:        body,
+			ContentType: contentType,
+		})
+	})
 
 	addr, err := a.proxy.Start()
 	if err != nil {
@@ -262,4 +274,13 @@ func (a *App) OpenFilePicker() (string, error) {
 		},
 	})
 	return path, err
+}
+
+func (a *App) StartRecording() error {
+	return a.recorder.Start()
+}
+
+func (a *App) StopRecording() string {
+	session := a.recorder.Stop()
+	return cdp.GeneratePlaywright(session)
 }

@@ -62,6 +62,14 @@ export function SetRewriteRules(arg1) {
   return window['go']['main']['App']['SetRewriteRules'](arg1);
 }
 
+export function StartRecording() {
+  return window['go']['main']['App']['StartRecording']();
+}
+
+export function StopRecording() {
+  return window['go']['main']['App']['StopRecording']();
+}
+
 export function UpdateEnvironment(arg1) {
   return window['go']['main']['App']['UpdateEnvironment'](arg1);
 }

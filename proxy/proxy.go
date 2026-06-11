@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -31,14 +32,15 @@ var hopHeaders = map[string]bool{
 }
 
 type Proxy struct {
-	server  *http.Server
-	ln      net.Listener
-	rules   []profiles.RewriteRule
-	headers map[string]string
-	mocks   []MockRule
-	context context.Context
-	ca      *CA
-	mu      sync.RWMutex
+	server    *http.Server
+	ln        net.Listener
+	rules     []profiles.RewriteRule
+	headers   map[string]string
+	mocks     []MockRule
+	context   context.Context
+	ca        *CA
+	onNetwork func(method, url string, status int, body, contentType string)
+	mu        sync.RWMutex
 }
 
 type MockRule struct {
@@ -134,6 +136,12 @@ func (p *Proxy) SetCA(ca *CA) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.ca = ca
+}
+
+func (p *Proxy) SetNetworkHook(fn func(method, url string, status int, body, contentType string)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.onNetwork = fn
 }
 
 func (p *Proxy) handle(w http.ResponseWriter, r *http.Request) {
@@ -291,6 +299,20 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	})
 
 	copyHeaders(w.Header(), res.Header)
+
+	var bodyStr string
+	contentType := res.Header.Get("Content-Type")
+	if contentType == "application/json" {
+		body, err := io.ReadAll(res.Body)
+		if err == nil {
+			res.Body = io.NopCloser(bytes.NewReader(body))
+			bodyStr = string(body)
+		}
+	}
+
+	if p.onNetwork != nil {
+		p.onNetwork(r.Method, targetURL.String(), res.StatusCode, bodyStr, contentType)
+	}
 
 	// CORS override
 	if origin := r.Header.Get("Origin"); origin != "" {

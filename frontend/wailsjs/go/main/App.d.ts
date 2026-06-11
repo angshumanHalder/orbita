@@ -33,4 +33,8 @@ export function SetMocks(arg1:Array<proxy.MockRule>):Promise<void>;
 
 export function SetRewriteRules(arg1:Array<profiles.RewriteRule>):Promise<void>;
 
+export function StartRecording():Promise<void>;
+
+export function StopRecording():Promise<string>;
+
 export function UpdateEnvironment(arg1:profiles.Environment):Promise<void>;

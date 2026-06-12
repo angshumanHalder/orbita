@@ -34,32 +34,36 @@ export function PACDomainsPanel() {
   };
 
   return (
-    <div className="flex flex-col gap-2 p-2">
+    <div className="flex flex-col gap-3 p-2">
       <div className="flex gap-2">
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="e.g. api.example.com"
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          className="h-7 text-xs"
         />
-        <Button onClick={handleAdd}>Add</Button>
+        <Button size="sm" onClick={handleAdd}>Add</Button>
       </div>
-      {domains.length === 0 && (
-        <div className="text-muted-foreground text-sm">
+      {domains.length === 0 ? (
+        <div className="text-xs text-muted-foreground">
           No domains. Import env config to auto-populate.
         </div>
-      )}
-      {domains.map((d) => (
-        <div
-          key={d}
-          className="flex items-center justify-between px-2 py-1 border rounded text-sm font-mono"
-        >
-          <span>{d}</span>
-          <Button variant="ghost" size="icon" onClick={() => handleRemove(d)}>
-            <Trash className="w-4 h-4" />
-          </Button>
+      ) : (
+        <div className="flex flex-col gap-1">
+          {domains.map((d) => (
+            <div
+              key={d}
+              className="flex items-center justify-between px-3 py-1.5 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+            >
+              <span className="text-xs font-mono text-foreground">{d}</span>
+              <Button variant="ghost" size="icon-sm" onClick={() => handleRemove(d)}>
+                <Trash className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+              </Button>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }

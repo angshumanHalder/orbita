@@ -46,7 +46,7 @@ export function MockManager() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="grid grid-cols-5 px-4 py-2 text-xs text-muted-foreground border-b border-border">
+      <div className="grid grid-cols-[80px_1fr_70px_70px_60px] px-4 py-1.5 text-xs text-muted-foreground border-b border-border">
         <div>Method</div>
         <div>Path</div>
         <div>Status</div>
@@ -55,14 +55,19 @@ export function MockManager() {
       </div>
       {/* Rows */}
       <div className="flex-1 overflow-y-auto">
+        {mocks.length === 0 && (
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+            No mocks yet. Right-click a request to create one.
+          </div>
+        )}
         {mocks.map((m, i) => (
           <div
             key={i}
-            className="grid grid-cols-5 px-4 py-2 text-sm border-b border-border hover:bg-muted/50 items-center"
+            className="grid grid-cols-[80px_1fr_70px_70px_60px] px-4 py-2 text-sm border-b border-border hover:bg-muted/50 items-center"
           >
-            <div>{m.Method}</div>
-            <div className="overflow-x-hidden text-ellipsis">{m.Path}</div>
-            <div>{m.Status}</div>
+            <div className="font-mono text-xs">{m.Method}</div>
+            <div className="truncate text-xs">{m.Path}</div>
+            <div className="text-xs">{m.Status}</div>
             <div>
               <Switch
                 size="sm"
@@ -72,11 +77,11 @@ export function MockManager() {
             </div>
             <div>
               <Button
-                variant="destructive"
-                className="cursor-pointer"
+                variant="ghost"
+                size="icon-sm"
                 onClick={() => handleDelete(i)}
               >
-                <Trash />
+                <Trash className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
               </Button>
             </div>
           </div>

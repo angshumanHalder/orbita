@@ -85,29 +85,34 @@ function App() {
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
       {/* Top bar */}
-      <div className="flex items-center px-4 py-2 border-b border-border">
+      <div className="flex items-center px-4 py-2 border-b border-border gap-3">
+        <span className="text-base font-semibold tracking-tight">Orbita</span>
+        <div className="w-px h-4 bg-border" /> {/* divider */}
         <EnvSelector
           activeEnv={activeEnvName}
           environments={envs}
           onEnvChange={handleEnvChange}
         />
-        <div className="flex-1 text-sm text-muted-foreground font-mono ms-4">
-          Proxy: {proxyAddr}
+        <div className="flex-1 text-xs text-muted-foreground font-mono">
+          {proxyAddr}
         </div>
-        <Button
-          variant={isRecording ? "destructive" : "outline"}
-          onClick={handleToggleRecording}
-        >
-          {isRecording ? <Square /> : <Circle />}
-          {isRecording ? "Stop" : "Record"}
-        </Button>
-        <Button
-          className="cursor-pointer"
-          variant="outline"
-          onClick={handleOpenChrome}
-        >
-          <Globe /> Open in Chrome
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={isRecording ? "destructive" : "outline"}
+            size="sm"
+            onClick={handleToggleRecording}
+          >
+            {isRecording ? (
+              <Square className="w-3 h-3" />
+            ) : (
+              <Circle className="w-3 h-3" />
+            )}
+            {isRecording ? "Stop" : "Record"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleOpenChrome}>
+            <Globe className="w-3 h-3" /> Open in Chrome
+          </Button>
+        </div>
       </div>
       {/* Log panel */}
       <Tabs

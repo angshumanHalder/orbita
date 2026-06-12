@@ -85,7 +85,7 @@ export function ConfigPanel({
       <div className="flex gap-2 items-center mb-2">
         <Button
           variant="destructive"
-          className="cursor-pointer"
+          size="sm"
           disabled={!activeEnv}
           onClick={() => handleDeleteEnv()}
         >
@@ -95,12 +95,9 @@ export function ConfigPanel({
           value={newEnvName}
           onChange={(e) => setNewEnvName(e.target.value)}
           placeholder="New env name"
+          className="h-7 text-xs"
         />
-        <Button
-          className="cursor-pointer"
-          variant="default"
-          onClick={handleAddEnv}
-        >
+        <Button size="sm" variant="default" onClick={handleAddEnv}>
           Add
         </Button>
       </div>
@@ -114,7 +111,7 @@ export function ConfigPanel({
           <TabsTrigger value="pac-domains">PAC Domains</TabsTrigger>
         </TabsList>
         <TabsContent value="headers" className="flex-1 overflow-auto mt-0">
-          <h3 className="text-xl font-bold tracking-tight mb-2">Headers</h3>
+          <h3 className="text-sm font-medium text-foreground mb-2">Headers</h3>
           {activeEnv && (
             <HeaderEditor
               headers={activeEnv?.Headers}
@@ -127,7 +124,7 @@ export function ConfigPanel({
             <EnvMappingPanel onMappingApplied={onEnvsChange} />
           </div>
           <div>
-            <h3 className="text-xl font-bold tracking-tight mb-2">Rules</h3>
+            <h3 className="text-sm font-medium text-foreground mb-2">Rules</h3>
             {activeEnv && (
               <RewriteRulesEditor
                 rules={activeEnv?.RewriteRules}

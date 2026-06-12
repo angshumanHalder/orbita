@@ -65,6 +65,7 @@ type LogEntry struct {
 	Latency     int64
 	Mocked      bool
 	ContentType string
+	Time        int64
 }
 
 type connResponseWriter struct {
@@ -266,6 +267,7 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 				Latency:     timeEnd,
 				Mocked:      m.Enabled,
 				ContentType: "application/json",
+				Time:        time.Now().UnixMilli(),
 			})
 			w.Header().Set("Content-Type", "application/json")
 			if origin := r.Header.Get("Origin"); origin != "" {
@@ -303,6 +305,7 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		Latency:     time.Since(startTime).Milliseconds(),
 		Mocked:      false,
 		ContentType: res.Header.Get("Content-Type"),
+		Time:        time.Now().UnixMilli(),
 	})
 
 	copyHeaders(w.Header(), res.Header)

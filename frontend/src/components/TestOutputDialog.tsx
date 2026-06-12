@@ -1,7 +1,6 @@
 import { Button } from "./ui/button";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -26,12 +25,14 @@ export function TestOutputDialog({ content, open, onOpenChange }: Props) {
           value={content}
           className="h-96 font-mono text-xs resize-none"
         />
-        <Button
-          className="w-full"
-          onClick={() => navigator.clipboard.writeText(content)}
-        >
-          Copy
-        </Button>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button size="sm" onClick={() => navigator.clipboard.writeText(content)}>
+            Copy
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );

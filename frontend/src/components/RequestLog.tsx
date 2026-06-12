@@ -1,4 +1,4 @@
-import { CircleCheck, CircleX } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EventsOn } from "wailsjs/runtime/runtime";
 import { Button } from "./ui/button";
@@ -18,6 +18,7 @@ type LogEntry = {
   Status: number;
   Latency: number;
   Mocked: boolean;
+  Time: number;
   ContentType: string;
 };
 
@@ -44,7 +45,6 @@ export function RequestLog() {
   } | null>(null);
 
   useEffect(() => {
-    if (!(window as any).runtime) return;
     const unsub = EventsOn("request-log", (entry: LogEntry) => {
       setEntries((prev: LogEntry[]) => [entry, ...prev]);
     });
@@ -60,7 +60,6 @@ export function RequestLog() {
   };
 
   const handleMock = (entry: LogEntry) => {
-    console.log("handlemock");
     setMockDraft({
       method: entry.Method,
       path: entry.Path,
@@ -91,61 +90,63 @@ export function RequestLog() {
 
   return (
     <div className="flex flex-col h-full">
+      {/* Toolbar */}
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
+        <Button
+          variant={xhrOnly ? "secondary" : "ghost"}
+          size="sm"
+          onClick={() => setXhrOnly((v) => !v)}
+        >
+          XHR
+        </Button>
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Filter path..."
+          className="h-7 text-xs w-56"
+        />
+        <Button variant="ghost" size="sm" onClick={() => setEntries([])}>
+          Clear
+        </Button>
+      </div>
       {/* Column headers */}
-      <div className="grid grid-cols-5 px-4 py-2 text-xs text-muted-foreground border-b border-border items-center">
-        <div className="flex items-center">
-          <div className="me-1 cursor-pointer">Method</div>
-          <Button
-            variant={xhrOnly ? "secondary" : "outline"}
-            size="xs"
-            onClick={() => setXhrOnly((v) => !v)}
-            className={
-              xhrOnly
-                ? "bg-[#87a987] text-[#1a1a2e] hover:bg-[#87a987]/90 border-[#87a987] cursor-pointer me-1"
-                : "cusor-pointer me-1"
-            }
-          >
-            XHR
-          </Button>
-          <Button variant="outline" size="xs" onClick={() => setEntries([])}>
-            Clear
-          </Button>
-        </div>
-        <div>
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Filter path..."
-            className="bg-transparent text-xs border border-border rounded px-2 py-0.5 w-48 focus:outline-none focus:border-[#87a987]
-            text-foreground placeholder:text-muted-foreground me-1 flex-1/3"
-          />
-        </div>
+      <div className="grid grid-cols-[80px_1fr_70px_80px_70px_50px] px-4 py-1.5 text-xs text-muted-foreground border-b border-border">
+        <div>Method</div>
+        <div>Path</div>
         <div>Status</div>
         <div>Latency</div>
+        <div>Time</div>
         <div>Mocked</div>
       </div>
       {/* Rows */}
       <div className="flex-1 overflow-y-auto">
+        {visible.length === 0 && (
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+            {entries.length === 0 ? "No requests yet." : "No matching requests."}
+          </div>
+        )}
         {visible.map((e, i) => (
           <ContextMenu key={i}>
             <ContextMenuTrigger>
-              <div className="grid grid-cols-5 px-4 py-2 text-sm border-b border-border hover:bg-muted/50">
-                <span className="p-1">{e.Method}</span>
-                <span
-                  className="overflow-hidden text-ellipsis p-1"
-                  title={e.Path}
-                >
+              <div className="grid grid-cols-[80px_1fr_70px_80px_70px_50px] px-4 py-2 text-sm border-b border-border hover:bg-muted/50 items-center">
+                <span className="font-mono text-xs">{e.Method}</span>
+                <span className="truncate text-xs" title={e.Path}>
                   {e.Path}
                 </span>
-                <span className={`${statusStyleHelper(e.Status)} p-1`}>
+                <span className={`text-xs ${statusStyleHelper(e.Status)}`}>
                   {e.Status}
                 </span>
-                <span className="p-1">{e.Latency}ms</span>
-                <span className="p-1">
+                <span className="text-xs text-muted-foreground">
+                  {e.Latency}ms
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {new Date(e.Time).toLocaleTimeString()}
+                </span>
+                <span>
                   {e.Mocked ? (
-                    <CircleCheck style={{ color: "#87a987" }} />
+                    <CircleCheck className="w-4 h-4 text-green-500" />
                   ) : (
-                    <CircleX style={{ color: "#c4746e" }} />
+                    <span className="text-muted-foreground">—</span>
                   )}
                 </span>
               </div>

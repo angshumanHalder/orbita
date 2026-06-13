@@ -122,7 +122,9 @@ export function RequestLog() {
       <div className="flex-1 overflow-y-auto">
         {visible.length === 0 && (
           <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-            {entries.length === 0 ? "No requests yet." : "No matching requests."}
+            {entries.length === 0
+              ? "No requests yet."
+              : "No matching requests."}
           </div>
         )}
         {visible.map((e, i) => (

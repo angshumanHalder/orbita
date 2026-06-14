@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -28,6 +29,7 @@ type App struct {
 	pacDomains []string
 	pacAddr    string
 	pacMu      sync.Mutex
+	mocksPath  string
 }
 
 // NewApp creates a new App application struct
@@ -93,6 +95,14 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 	a.proxy.SetCA(ca)
+
+	a.mocksPath = homeDir + "/.config/orbita/mocks.json"
+	if data, err := os.ReadFile(a.mocksPath); err == nil {
+		var mocks []proxy.MockRule
+		if json.Unmarshal(data, &mocks) == nil && len(mocks) > 0 {
+			a.proxy.SetMocks(mocks)
+		}
+	}
 
 	if goruntime.GOOS == "darwin" {
 		go func() {
@@ -217,6 +227,14 @@ func (a *App) GetMocks() []proxy.MockRule {
 
 func (a *App) SetMocks(mocks []proxy.MockRule) {
 	a.proxy.SetMocks(mocks)
+	if a.mocksPath != "" {
+		if data, err := json.Marshal(mocks); err == nil {
+			os.WriteFile(a.mocksPath, data, 0644)
+		}
+	}
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, "mocks-updated", mocks)
+	}
 }
 
 func (a *App) OpenInChrome() error {

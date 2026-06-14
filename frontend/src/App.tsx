@@ -127,11 +127,12 @@ function App() {
         </TabsList>
         <TabsContent
           value="request-log"
+          keepMounted
           className="flex-1 overflow-hidden mt-0"
         >
           <RequestLog />
         </TabsContent>
-        <TabsContent value="ws-log" className="flex-1 overflow-hidden mt-0">
+        <TabsContent value="ws-log" keepMounted className="flex-1 overflow-hidden mt-0">
           <WebSocketLog />
         </TabsContent>
         <TabsContent value="mocks" className="flex-1 overflow-hidden mt-0">

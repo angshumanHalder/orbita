@@ -81,7 +81,7 @@ export function ConfigPanel({
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col h-full">
       <div className="flex gap-2 items-center mb-2">
         <Button
           variant="destructive"
@@ -133,7 +133,7 @@ export function ConfigPanel({
             )}
           </div>
         </TabsContent>
-        <TabsContent value="pac-domains">
+        <TabsContent value="pac-domains" className="flex-1 overflow-auto mt-0">
           <PACDomainsPanel />
         </TabsContent>
       </Tabs>

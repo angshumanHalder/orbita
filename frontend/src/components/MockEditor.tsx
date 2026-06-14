@@ -62,7 +62,7 @@ export const MockEditor = ({
           <Textarea
             value={body}
             onChange={(e) => handleBodyChange(e.target.value)}
-            className="mb-2 font-mono text-xs min-h-75 resize-y"
+            className="mb-2 font-mono text-xs h-64 resize-none overflow-y-auto"
             placeholder='{"key": "value"}'
           />
           <Button

@@ -12,6 +12,14 @@ import { Input } from "./ui/input";
 import { MockEditor } from "./MockEditor";
 import { GetMocks, SetMocks } from "wailsjs/go/main/App";
 
+type MockRule = {
+  Method: string;
+  Path: string;
+  Body: string;
+  Enabled: boolean;
+  Status: number;
+};
+
 type LogEntry = {
   Method: string;
   Path: string;
@@ -35,6 +43,7 @@ const NON_API = [
 
 export function RequestLog() {
   const [entries, setEntries] = useState<LogEntry[]>([]);
+  const [mocks, setMocks] = useState<MockRule[]>([]);
   const [xhrOnly, setXhrOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [mockDraft, setMockDraft] = useState<{
@@ -50,6 +59,20 @@ export function RequestLog() {
     });
     return () => unsub?.();
   }, []);
+
+  useEffect(() => {
+    GetMocks().then((m) => setMocks(m ?? []));
+    const unsub = EventsOn("mocks-updated", (m: MockRule[]) => setMocks(m ?? []));
+    return () => unsub?.();
+  }, []);
+
+  const isEntryMocked = (entry: LogEntry) =>
+    mocks.some(
+      (m) =>
+        m.Enabled &&
+        m.Method.toUpperCase() === entry.Method.toUpperCase() &&
+        m.Path.split("?")[0] === entry.Path.split("?")[0],
+    );
 
   const statusStyleHelper = (status: number) => {
     return status >= 400
@@ -81,6 +104,7 @@ export function RequestLog() {
       },
     ];
     await SetMocks(updated);
+    setMocks(updated);
     setMockDraft(null);
   };
 
@@ -145,7 +169,7 @@ export function RequestLog() {
                   {new Date(e.Time).toLocaleTimeString()}
                 </span>
                 <span>
-                  {e.Mocked ? (
+                  {isEntryMocked(e) ? (
                     <CircleCheck className="w-4 h-4 text-green-500" />
                   ) : (
                     <span className="text-muted-foreground">—</span>

@@ -63,6 +63,7 @@ type LogEntry struct {
 	Path        string
 	Status      int
 	Latency     int64
+	Host        string
 	Mocked      bool
 	ContentType string
 	Time        int64
@@ -70,6 +71,7 @@ type LogEntry struct {
 
 type connResponseWriter struct {
 	conn       *tls.Conn
+	reader     *bufio.Reader
 	header     http.Header
 	statusCode int
 	body       []byte
@@ -168,12 +170,25 @@ func (p *Proxy) handle(w http.ResponseWriter, r *http.Request) {
 	p.handleHTTP(w, r)
 }
 
+func stripDefaultPort(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return rawURL
+	}
+	port := u.Port()
+	if (u.Scheme == "https" && port == "443") || (u.Scheme == "http" && port == "80") {
+		u.Host = u.Hostname()
+	}
+	return u.String()
+}
+
 func (p *Proxy) rewrite(rawURL string) string {
+	normalized := stripDefaultPort(rawURL)
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	for _, r := range p.rules {
-		if strings.HasPrefix(rawURL, r.From) {
-			return r.To + strings.TrimPrefix(rawURL, r.From)
+		if strings.HasPrefix(normalized, r.From) {
+			return r.To + strings.TrimPrefix(normalized, r.From)
 		}
 	}
 	return rawURL
@@ -219,7 +234,12 @@ func (p *Proxy) handleCONNECT(w http.ResponseWriter, r *http.Request) {
 		}
 		req.URL.Scheme = "https"
 		req.URL.Host = r.Host
-		rw := newConnResponseWriter(tlsConn)
+		rw := newConnResponseWriter(tlsConn, reader)
+		if strings.EqualFold(req.Header.Get("Upgrade"), "websocket") {
+			req.URL.Scheme = "wss"
+			p.handleWS(newConnResponseWriter(tlsConn, reader), req)
+			return
+		}
 		p.handleHTTP(rw, req)
 		if err := rw.flush(); err != nil {
 			return
@@ -254,19 +274,32 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		if origin := r.Header.Get("Origin"); origin != "" {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
-			w.Header().Set("Access-Control-Allow-Methods", "*")
-			w.Header().Set("Access-Control-Allow-Headers", "*")
+			if reqMethod := r.Header.Get("Access-Control-Request-Method"); reqMethod != "" {
+				w.Header().Set("Access-Control-Allow-Methods", reqMethod)
+			} else {
+				w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+			}
+			if reqHeaders := r.Header.Get("Access-Control-Request-Headers"); reqHeaders != "" {
+				w.Header().Set("Access-Control-Allow-Headers", reqHeaders)
+			} else {
+				w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			}
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
 	for _, m := range p.mocks {
-		if m.Enabled && strings.EqualFold(m.Method, r.Method) && m.Path == targetURL.Path {
+		mockPath := m.Path
+		if idx := strings.Index(mockPath, "?"); idx != -1 {
+			mockPath = mockPath[:idx]
+		}
+		if m.Enabled && strings.EqualFold(m.Method, r.Method) && mockPath == targetURL.Path {
 			timeEnd := time.Since(startTime).Milliseconds()
 			runtime.EventsEmit(p.context, "request-log", LogEntry{
 				Method:      m.Method,
 				Path:        targetURL.RequestURI(),
+				Host:        targetURL.Hostname(),
 				Status:      m.Status,
 				Latency:     timeEnd,
 				Mocked:      m.Enabled,
@@ -294,6 +327,17 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	res, err := http.DefaultTransport.RoundTrip(outReq)
 
 	if err != nil {
+		if p.context != nil {
+			runtime.EventsEmit(p.context, "request-log", LogEntry{
+				Method:  r.Method,
+				Path:    targetURL.Path,
+				Host:    targetURL.Hostname(),
+				Status:  http.StatusBadGateway,
+				Latency: time.Since(startTime).Milliseconds(),
+				Mocked:  false,
+				Time:    time.Now().UnixMilli(),
+			})
+		}
 		w.WriteHeader(http.StatusBadGateway)
 		return
 	}
@@ -305,6 +349,7 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	runtime.EventsEmit(p.context, "request-log", LogEntry{
 		Method:      r.Method,
 		Path:        targetURL.RequestURI(),
+		Host:        targetURL.Hostname(),
 		Status:      res.StatusCode,
 		Latency:     time.Since(startTime).Milliseconds(),
 		Mocked:      false,
@@ -341,8 +386,20 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Proxy) handleWS(w http.ResponseWriter, r *http.Request) {
-	targetRaw := "ws://" + r.Host + r.RequestURI
+	scheme := "ws://"
+	if r.URL.Scheme == "wss" || r.TLS != nil {
+		scheme = "wss://"
+	}
+	targetRaw := scheme + r.Host + r.RequestURI
 	target := p.rewrite(targetRaw)
+
+	if target == targetRaw {
+		alt := strings.Replace(targetRaw, scheme, map[string]string{"ws://": "wss://", "wss://": "ws://"}[scheme], 1)
+		if r2 := p.rewrite(alt); r2 != alt {
+			target = r2
+		}
+	}
+
 	target = strings.ReplaceAll(target, "https://", "wss://")
 	target = strings.ReplaceAll(target, "http://", "ws://")
 	targetURL, err := url.Parse(target)
@@ -408,11 +465,15 @@ func (p *Proxy) handleWS(w http.ResponseWriter, r *http.Request) {
 	<-errc
 }
 
-func newConnResponseWriter(conn *tls.Conn) *connResponseWriter {
-	return &connResponseWriter{conn: conn, header: make(http.Header), statusCode: 200}
+func newConnResponseWriter(conn *tls.Conn, reader *bufio.Reader) *connResponseWriter {
+	return &connResponseWriter{conn: conn, reader: reader, header: make(http.Header), statusCode: 200}
 }
 
 func (rw *connResponseWriter) Header() http.Header { return rw.header }
+
+func (rw *connResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return rw.conn, bufio.NewReadWriter(rw.reader, bufio.NewWriter(rw.conn)), nil
+}
 
 func (rw *connResponseWriter) WriteHeader(status int) {
 	rw.statusCode = status

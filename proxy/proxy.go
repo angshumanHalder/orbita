@@ -269,7 +269,14 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 	copyHeaders(outReq.Header, r.Header)
 
 	p.mu.RLock()
-	defer p.mu.RUnlock()
+	mocks := make([]MockRule, len(p.mocks))
+	copy(mocks, p.mocks)
+	localHeaders := make(map[string]string, len(p.headers))
+	for k, v := range p.headers {
+		localHeaders[k] = v
+	}
+	onNetwork := p.onNetwork
+	p.mu.RUnlock()
 
 	if r.Method == http.MethodOptions {
 		if origin := r.Header.Get("Origin"); origin != "" {
@@ -290,7 +297,7 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, m := range p.mocks {
+	for _, m := range mocks {
 		mockPath := m.Path
 		if idx := strings.Index(mockPath, "?"); idx != -1 {
 			mockPath = mockPath[:idx]
@@ -322,7 +329,7 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for k, v := range p.headers {
+	for k, v := range localHeaders {
 		outReq.Header.Set(k, v)
 	}
 
@@ -374,8 +381,8 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if p.onNetwork != nil {
-		p.onNetwork(r.Method, targetURL.String(), res.StatusCode, bodyStr, contentType)
+	if onNetwork != nil {
+		onNetwork(r.Method, targetURL.String(), res.StatusCode, bodyStr, contentType)
 	}
 
 	// CORS override
@@ -430,8 +437,6 @@ func (p *Proxy) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.mu.RLock()
-	defer p.mu.RUnlock()
-
 	for k, v := range p.headers {
 		switch strings.ToLower(k) {
 		case "upgrade", "connection", "sec-websocket-key", "sec-websocket-version", "sec-websocket-extensions":
@@ -439,6 +444,8 @@ func (p *Proxy) handleWS(w http.ResponseWriter, r *http.Request) {
 			fwdHeaders[k] = []string{v}
 		}
 	}
+	p.mu.RUnlock()
+
 	serverConn, _, err := websocket.DefaultDialer.Dial(targetURL.String(), fwdHeaders)
 	if err != nil {
 		clientConn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "upstream failed"))

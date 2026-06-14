@@ -291,7 +291,9 @@ func (a *App) ImportEnvConfig(path string) error {
 	}
 	if a.store != nil {
 		a.store.PACDomains = a.pacDomains
-		a.store.Save()
+		if err := a.store.Save(); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -384,7 +386,9 @@ func (a *App) AddPACDomain(domain string) {
 	a.pacDomains = append(a.pacDomains, domain)
 	if a.store != nil {
 		a.store.PACDomains = a.pacDomains
-		a.store.Save()
+		if err := a.store.Save(); err != nil {
+			fmt.Println("failed to save PAC domains:", err)
+		}
 	}
 }
 
@@ -396,7 +400,9 @@ func (a *App) RemovePACDomain(domain string) {
 			a.pacDomains = append(a.pacDomains[:i], a.pacDomains[i+1:]...)
 			if a.store != nil {
 				a.store.PACDomains = a.pacDomains
-				a.store.Save()
+				if err := a.store.Save(); err != nil {
+					fmt.Println("failed to save PAC domains:", err)
+				}
 			}
 			return
 		}

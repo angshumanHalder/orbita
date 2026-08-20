@@ -115,7 +115,11 @@ export function RequestLog() {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border">
+      <div className="flex h-11 items-center gap-2 border-b border-border px-4">
+        <div className="mr-auto">
+          <span className="text-sm font-medium">HTTP requests</span>
+          <span className="ml-2 text-xs text-muted-foreground">{entries.length}</span>
+        </div>
         <Button
           variant={xhrOnly ? "secondary" : "ghost"}
           size="sm"
@@ -134,7 +138,7 @@ export function RequestLog() {
         </Button>
       </div>
       {/* Column headers */}
-      <div className="grid grid-cols-[80px_1fr_70px_80px_70px_50px] px-4 py-1.5 text-xs text-muted-foreground border-b border-border">
+      <div className="grid grid-cols-[80px_1fr_70px_80px_90px_60px] border-b border-border bg-muted/30 px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
         <div>Method</div>
         <div>Path</div>
         <div>Status</div>
@@ -154,7 +158,7 @@ export function RequestLog() {
         {visible.map((e, i) => (
           <ContextMenu key={i}>
             <ContextMenuTrigger>
-              <div className="grid grid-cols-[80px_1fr_70px_80px_70px_50px] px-4 py-2 text-sm border-b border-border hover:bg-muted/50 items-center">
+              <div className="grid grid-cols-[80px_1fr_70px_80px_90px_60px] items-center border-b border-border/70 px-4 py-2.5 text-sm hover:bg-muted/30">
                 <span className="font-mono text-xs">{e.Method}</span>
                 <span className="truncate text-xs" title={e.Path}>
                   {e.Path}

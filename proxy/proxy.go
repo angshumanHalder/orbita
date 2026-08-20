@@ -56,6 +56,7 @@ type WSFrame struct {
 	Direction string // send or recv
 	MsgType   int
 	Payload   string
+	Time      int64
 }
 
 type LogEntry struct {
@@ -398,15 +399,14 @@ func (p *Proxy) handleHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Proxy) handleWS(w http.ResponseWriter, r *http.Request) {
-	scheme := "ws://"
-	if r.URL.Scheme == "wss" || r.TLS != nil {
-		scheme = "wss://"
-	}
-	targetRaw := scheme + r.Host + r.RequestURI
+	targetRaw := websocketURL(r)
 	target := p.rewrite(targetRaw)
 
 	if target == targetRaw {
-		alt := strings.Replace(targetRaw, scheme, map[string]string{"ws://": "wss://", "wss://": "ws://"}[scheme], 1)
+		alt := "wss://" + strings.TrimPrefix(targetRaw, "ws://")
+		if strings.HasPrefix(targetRaw, "wss://") {
+			alt = "ws://" + strings.TrimPrefix(targetRaw, "wss://")
+		}
 		if r2 := p.rewrite(alt); r2 != alt {
 			target = r2
 		}
@@ -466,6 +466,7 @@ func (p *Proxy) handleWS(w http.ResponseWriter, r *http.Request) {
 					Direction: direction,
 					MsgType:   t,
 					Payload:   string(msg),
+					Time:      time.Now().UnixMilli(),
 				})
 			}
 			if err := dst.WriteMessage(t, msg); err != nil {
@@ -477,6 +478,19 @@ func (p *Proxy) handleWS(w http.ResponseWriter, r *http.Request) {
 	go relay(serverConn, clientConn, "send")
 	go relay(clientConn, serverConn, "recv")
 	<-errc
+}
+
+func websocketURL(r *http.Request) string {
+	u := *r.URL
+	if !u.IsAbs() {
+		u.Host = r.Host
+	}
+	if u.Scheme == "https" || u.Scheme == "wss" || r.TLS != nil {
+		u.Scheme = "wss"
+	} else {
+		u.Scheme = "ws"
+	}
+	return u.String()
 }
 
 func newConnResponseWriter(conn *tls.Conn, reader *bufio.Reader) *connResponseWriter {

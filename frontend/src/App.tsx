@@ -12,7 +12,7 @@ import {
 } from "wailsjs/go/main/App";
 import { EnvSelector } from "./components/EnvSelector";
 import { Button } from "./components/ui/button";
-import { Circle, Globe, Square } from "lucide-react";
+import { Circle, Globe, Orbit, Square } from "lucide-react";
 import { RequestLog } from "./components/RequestLog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
 import { MockManager } from "./components/MockManager";
@@ -83,18 +83,22 @@ function App() {
   }, []);
 
   return (
-    <div className="flex flex-col h-screen bg-background text-foreground">
-      {/* Top bar */}
-      <div className="flex items-center px-4 py-2 border-b border-border gap-3">
-        <span className="text-base font-semibold tracking-tight">Orbita</span>
-        <div className="w-px h-4 bg-border" /> {/* divider */}
+    <div className="flex h-screen flex-col bg-background text-foreground">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border/80 bg-card/60 px-5 shadow-sm">
+        <div className="flex items-center gap-2 pr-2">
+          <span className="grid size-7 place-items-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+            <Orbit className="size-4" />
+          </span>
+          <span className="text-sm font-semibold tracking-tight">Orbita</span>
+        </div>
         <EnvSelector
           activeEnv={activeEnvName}
           environments={envs}
           onEnvChange={handleEnvChange}
         />
-        <div className="flex-1 text-xs text-muted-foreground font-mono">
-          {proxyAddr}
+        <div className="flex flex-1 items-center gap-2 text-xs text-muted-foreground">
+          <span className={`size-1.5 rounded-full ${proxyAddr ? "bg-green-500" : "bg-muted-foreground"}`} />
+          <span className="font-mono">{proxyAddr || "Proxy offline"}</span>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -113,13 +117,12 @@ function App() {
             <Globe className="w-3 h-3" /> Open in Chrome
           </Button>
         </div>
-      </div>
-      {/* Log panel */}
+      </header>
       <Tabs
-        className="flex-1 overflow-hidden flex flex-col p-2"
+        className="flex flex-1 flex-col overflow-hidden p-3"
         defaultValue="request-log"
       >
-        <TabsList className="shrink-0">
+        <TabsList className="mb-2 shrink-0 self-start">
           <TabsTrigger value="request-log">Requests</TabsTrigger>
           <TabsTrigger value="ws-log">WebSockets</TabsTrigger>
           <TabsTrigger value="mocks">Mocks</TabsTrigger>
@@ -128,17 +131,17 @@ function App() {
         <TabsContent
           value="request-log"
           keepMounted
-          className="flex-1 overflow-hidden mt-0"
+          className="panel flex-1 overflow-hidden"
         >
           <RequestLog />
         </TabsContent>
-        <TabsContent value="ws-log" keepMounted className="flex-1 overflow-hidden mt-0">
+        <TabsContent value="ws-log" keepMounted className="panel flex-1 overflow-hidden">
           <WebSocketLog />
         </TabsContent>
-        <TabsContent value="mocks" className="flex-1 overflow-hidden mt-0">
+        <TabsContent value="mocks" className="panel flex-1 overflow-hidden">
           <MockManager />
         </TabsContent>
-        <TabsContent value="config" className="flex-1 overflow-hidden mt-0">
+        <TabsContent value="config" className="panel flex-1 overflow-hidden p-3">
           <ConfigPanel
             activeEnv={activeEnv}
             activeEnvName={activeEnvName}

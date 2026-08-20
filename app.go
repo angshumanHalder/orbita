@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -111,7 +112,7 @@ func (a *App) startup(ctx context.Context) {
 			domains := a.pacDomains
 			a.pacMu.Unlock()
 			w.Header().Set("Content-Type", "application/x-ns-proxy-autoconfig")
-			fmt.Fprintf(w, pac.Generate(domains, a.proxy.Addr()))
+			io.WriteString(w, pac.Generate(domains, a.proxy.Addr()))
 		})
 		go http.Serve(pacLn, mux)
 	}

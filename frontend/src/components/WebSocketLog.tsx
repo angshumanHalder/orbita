@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { EventsOn } from "wailsjs/runtime/runtime";
 import { Button } from "./ui/button";
 
@@ -24,14 +23,18 @@ export function WebSocketLog() {
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center justify-end px-4 py-2 border-b border-border">
+      <div className="flex h-11 items-center justify-between border-b border-border px-4">
+        <div>
+          <span className="text-sm font-medium">WebSocket frames</span>
+          <span className="ml-2 text-xs text-muted-foreground">{frames.length}</span>
+        </div>
         <Button variant="ghost" size="sm" onClick={() => setFrames([])}>
           Clear
         </Button>
       </div>
       {/* Column headers */}
-      <div className="grid grid-cols-[24px_70px_1fr_1fr] px-4 py-1.5 text-xs text-muted-foreground border-b border-border font-mono">
-        <div></div>
+      <div className="grid grid-cols-[72px_90px_1fr_1fr] border-b border-border bg-muted/30 px-4 py-2 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+        <div>Direction</div>
         <div>Time</div>
         <div>URL</div>
         <div>Payload</div>
@@ -46,11 +49,11 @@ export function WebSocketLog() {
         {frames.map((f, i) => (
           <div
             key={i}
-            className={`grid grid-cols-[24px_70px_1fr_1fr] px-4 py-1.5 border-b border-border items-center ${
-              f.Direction === "send" ? "text-primary" : "text-green-500"
-            }`}
+            className="grid grid-cols-[72px_90px_1fr_1fr] items-center border-b border-border/70 px-4 py-2 hover:bg-muted/30"
           >
-            <span>{f.Direction === "send" ? "↑" : "↓"}</span>
+            <span className={f.Direction === "send" ? "text-primary" : "text-green-500"}>
+              {f.Direction === "send" ? "↑ Sent" : "↓ Received"}
+            </span>
             <span className="text-muted-foreground">
               {new Date(f.Time).toLocaleTimeString()}
             </span>

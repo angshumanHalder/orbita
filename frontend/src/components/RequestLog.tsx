@@ -128,9 +128,12 @@ export function RequestLog() {
           XHR
         </Button>
         <Input
+          aria-label="Filter requests by path"
+          autoComplete="off"
+          name="request-filter"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filter path..."
+          placeholder="Filter path…"
           className="h-7 text-xs w-56"
         />
         <Button variant="ghost" size="sm" onClick={() => setEntries([])}>
@@ -174,7 +177,10 @@ export function RequestLog() {
                 </span>
                 <span>
                   {isEntryMocked(e) ? (
-                    <CircleCheck className="w-4 h-4 text-green-500" />
+                    <span title="Mock enabled">
+                      <CircleCheck aria-hidden="true" className="w-4 h-4 text-green-500" />
+                      <span className="sr-only">Mock enabled</span>
+                    </span>
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}

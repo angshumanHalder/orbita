@@ -1,3 +1,8 @@
 build/bin
 node_modules
 frontend/dist
+frontend/package.json.md5
+.DS_Store
+/orbita
+/Smart_Proxy_Utility_PRD.md
+/testEnv.json

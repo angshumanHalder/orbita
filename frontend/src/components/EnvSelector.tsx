@@ -18,8 +18,8 @@ type Props = {
 export function EnvSelector({ activeEnv, environments, onEnvChange }: Props) {
   return (
     <Select value={activeEnv} onValueChange={(val) => val && onEnvChange(val)}>
-      <SelectTrigger className="w-full max-w-48">
-        <SelectValue placeholder="Select a environment" />
+      <SelectTrigger aria-label="Active environment" className="w-full max-w-48">
+        <SelectValue placeholder="Select an environment" />
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>

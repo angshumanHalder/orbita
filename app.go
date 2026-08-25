@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	goruntime "runtime"
+	"strings"
 	"sync"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -31,6 +32,7 @@ type App struct {
 	pacAddr    string
 	pacMu      sync.Mutex
 	mocksPath  string
+	caPath     string
 }
 
 // NewApp creates a new App application struct
@@ -70,7 +72,8 @@ func (a *App) startup(ctx context.Context) {
 		return
 	}
 
-	ca, err := proxy.LoadOrGenerate(homeDir+"/.config/orbita/ca.crt", homeDir+"/.config/orbita/ca.key")
+	a.caPath = homeDir + "/.config/orbita/ca.crt"
+	ca, err := proxy.LoadOrGenerate(a.caPath, homeDir+"/.config/orbita/ca.key")
 	if err != nil {
 		fmt.Println("CA init error")
 		return
@@ -119,14 +122,6 @@ func (a *App) startup(ctx context.Context) {
 	fmt.Println("proxy listening on ", addr)
 	fmt.Println("PAC server ", a.pacAddr)
 
-	if goruntime.GOOS == "darwin" {
-		go func() {
-			check := exec.Command("security", "verify-cert", "-c", homeDir+"/.config/orbita/ca.crt")
-			if check.Run() != nil {
-				exec.Command("osascript", "-e", `do shell script "security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain `+homeDir+`/.config/orbita/ca.crt" with administrator privileges`).Run()
-			}
-		}()
-	}
 }
 
 // shut down
@@ -229,18 +224,21 @@ func (a *App) GetMocks() []proxy.MockRule {
 	return a.proxy.GetMock()
 }
 
-func (a *App) SetMocks(mocks []proxy.MockRule) {
-	a.proxy.SetMocks(mocks)
+func (a *App) SetMocks(mocks []proxy.MockRule) error {
 	if a.mocksPath != "" {
-		if data, err := json.Marshal(mocks); err == nil {
-			if err := os.WriteFile(a.mocksPath, data, 0644); err != nil {
-				fmt.Println("failed to save mocks:", err)
-			}
+		data, err := json.Marshal(mocks)
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(a.mocksPath, data, 0644); err != nil {
+			return err
 		}
 	}
+	a.proxy.SetMocks(mocks)
 	if a.ctx != nil {
 		runtime.EventsEmit(a.ctx, "mocks-updated", mocks)
 	}
+	return nil
 }
 
 func (a *App) OpenInChrome() error {
@@ -267,6 +265,23 @@ func (a *App) OpenInChrome() error {
 		return fmt.Errorf("unsupported OS: %s", goruntime.GOOS)
 	}
 	return cmd.Start()
+}
+
+func (a *App) InstallCA() error {
+	if goruntime.GOOS != "darwin" {
+		return fmt.Errorf("certificate installation is only supported on macOS")
+	}
+	if a.caPath == "" {
+		return fmt.Errorf("certificate is not ready")
+	}
+	if exec.Command("security", "verify-cert", "-c", a.caPath).Run() == nil {
+		return nil
+	}
+	script := `do shell script "security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain " & quoted form of ` + fmt.Sprintf("%q", a.caPath) + ` with administrator privileges`
+	if output, err := exec.Command("osascript", "-e", script).CombinedOutput(); err != nil {
+		return fmt.Errorf("install certificate: %s", strings.TrimSpace(string(output)))
+	}
+	return nil
 }
 
 func (a *App) ImportEnvConfig(path string) error {
@@ -376,24 +391,23 @@ func (a *App) GetPACDomains() []string {
 	return a.pacDomains
 }
 
-func (a *App) AddPACDomain(domain string) {
+func (a *App) AddPACDomain(domain string) error {
 	a.pacMu.Lock()
 	defer a.pacMu.Unlock()
 	for _, d := range a.pacDomains {
 		if d == domain {
-			return
+			return nil
 		}
 	}
 	a.pacDomains = append(a.pacDomains, domain)
 	if a.store != nil {
 		a.store.PACDomains = a.pacDomains
-		if err := a.store.Save(); err != nil {
-			fmt.Println("failed to save PAC domains:", err)
-		}
+		return a.store.Save()
 	}
+	return nil
 }
 
-func (a *App) RemovePACDomain(domain string) {
+func (a *App) RemovePACDomain(domain string) error {
 	a.pacMu.Lock()
 	defer a.pacMu.Unlock()
 	for i, d := range a.pacDomains {
@@ -401,13 +415,12 @@ func (a *App) RemovePACDomain(domain string) {
 			a.pacDomains = append(a.pacDomains[:i], a.pacDomains[i+1:]...)
 			if a.store != nil {
 				a.store.PACDomains = a.pacDomains
-				if err := a.store.Save(); err != nil {
-					fmt.Println("failed to save PAC domains:", err)
-				}
+				return a.store.Save()
 			}
-			return
+			return nil
 		}
 	}
+	return nil
 }
 
 func extractDomains(cfg *profiles.EnvConfig) []string {

@@ -13,6 +13,7 @@ import { HeaderEditor } from "./HeaderEditor";
 import { RewriteRulesEditor } from "./RewriteRulesEditor";
 import { EnvMappingPanel } from "./EnvMappingPanel";
 import { PACDomainsPanel } from "./PACDomainsPanel";
+import { reportError } from "../lib/report-error";
 
 type Props = {
   activeEnv: profiles.Environment | null;
@@ -30,24 +31,29 @@ export function ConfigPanel({
   const [newEnvName, setNewEnvName] = useState("");
 
   const handleDeleteEnv = async () => {
-    await DeleteEnvironment(activeEnvName);
-    onEnvsChange();
+    if (!window.confirm(`Delete environment “${activeEnvName}”?`)) return;
+    try {
+      await DeleteEnvironment(activeEnvName);
+      onEnvsChange();
+    } catch (err) {
+      reportError("Could not delete the environment", err);
+    }
   };
 
   const handleAddEnv = async () => {
     if (!newEnvName) {
       return;
     }
-    await AddEnvironment(
-      new profiles.Environment({
-        Name: newEnvName,
-        Headers: {},
-        RewriteRules: [],
-      }),
-    );
-    onEnvsChange();
-    await onEnvChange(newEnvName);
-    setNewEnvName("");
+    try {
+      await AddEnvironment(
+        new profiles.Environment({ Name: newEnvName, Headers: {}, RewriteRules: [] }),
+      );
+      onEnvsChange();
+      await onEnvChange(newEnvName);
+      setNewEnvName("");
+    } catch (err) {
+      reportError("Could not add the environment", err);
+    }
   };
 
   const handleSaveHeaders = async (headers: Record<string, string>) => {
@@ -62,7 +68,7 @@ export function ConfigPanel({
       await UpdateEnvironment(updated);
       onEnvsChange();
     } catch (err) {
-      console.error("Unable to update headers", err);
+      reportError("Could not save headers", err);
     }
   };
 
@@ -78,7 +84,7 @@ export function ConfigPanel({
       await UpdateEnvironment(updated);
       onEnvsChange();
     } catch (err) {
-      console.error("Unable to save rules", err);
+      reportError("Could not save rewrite rules", err);
     }
   };
 
@@ -89,14 +95,17 @@ export function ConfigPanel({
           variant="destructive"
           size="sm"
           disabled={!activeEnv}
-          onClick={() => handleDeleteEnv()}
+          onClick={handleDeleteEnv}
         >
-          Delete Active Env <Trash />
+          Delete Active Env <Trash aria-hidden="true" />
         </Button>
         <Input
+          aria-label="New environment name"
+          autoComplete="off"
+          name="environment-name"
           value={newEnvName}
           onChange={(e) => setNewEnvName(e.target.value)}
-          placeholder="New env name"
+          placeholder="New environment name…"
           className="h-7 text-xs"
         />
         <Button size="sm" variant="default" onClick={handleAddEnv}>

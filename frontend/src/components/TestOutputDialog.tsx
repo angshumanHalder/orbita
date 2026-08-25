@@ -21,6 +21,7 @@ export function TestOutputDialog({ content, open, onOpenChange }: Props) {
           <DialogTitle>Playwright Test</DialogTitle>
         </DialogHeader>
         <Textarea
+          aria-label="Generated Playwright test"
           readOnly
           value={content}
           className="h-96 font-mono text-xs resize-none"

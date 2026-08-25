@@ -51,8 +51,11 @@ export function HeaderEditor({ headers, onSave }: Props) {
         <div key={idx} className="flex mb-2">
           <div className="flex-auto w-34 me-1">
             <Input
+              aria-label={`Header name ${idx + 1}`}
+              autoComplete="off"
+              name={`header-name-${idx}`}
               value={row.key}
-              placeholder="header name"
+              placeholder="Header name…"
               onChange={(e) => {
                 const updated = rows.map((r, i) =>
                   i === idx ? { ...r, key: e.target.value } : r,
@@ -63,8 +66,11 @@ export function HeaderEditor({ headers, onSave }: Props) {
           </div>
           <div className="flex-auto w-66 me-1">
             <Input
+              aria-label={`Header value ${idx + 1}`}
+              autoComplete="off"
+              name={`header-value-${idx}`}
               value={row.value}
-              placeholder="value"
+              placeholder="Header value…"
               onChange={(e) => {
                 const updated = rows.map((r, i) =>
                   i === idx ? { ...r, value: e.target.value } : r,
@@ -74,11 +80,13 @@ export function HeaderEditor({ headers, onSave }: Props) {
             />
           </div>
           <Button
+            aria-label={`Remove header row ${idx + 1}`}
+            title="Remove header"
             variant="destructive"
             className="flex-none w-8 cursor-pointer"
             onClick={() => removeRowHandler(idx)}
           >
-            <Trash />
+            <Trash aria-hidden="true" />
           </Button>
         </div>
       ))}

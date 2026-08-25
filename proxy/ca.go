@@ -75,7 +75,7 @@ func (c *CA) Save(certPath, keyPath string) error {
 	}
 
 	// key file
-	kFile, err := os.Create(keyPath)
+	kFile, err := os.OpenFile(keyPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func LoadCA(certPath, keyPath string) (*CA, error) {
 func LoadOrGenerate(certPath, keyPath string) (*CA, error) {
 	ca, err := LoadCA(certPath, keyPath)
 	if err == nil {
-		return ca, nil
+		return ca, os.Chmod(keyPath, 0600)
 	}
 	if !os.IsNotExist(err) {
 		return nil, err

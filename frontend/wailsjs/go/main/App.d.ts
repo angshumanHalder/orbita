@@ -29,6 +29,8 @@ export function GetRewriteRules():Promise<Array<profiles.RewriteRule>>;
 
 export function ImportEnvConfig(arg1:string):Promise<void>;
 
+export function InstallCA():Promise<void>;
+
 export function OpenFilePicker():Promise<string>;
 
 export function OpenInChrome():Promise<void>;

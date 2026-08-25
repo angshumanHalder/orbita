@@ -47,8 +47,12 @@ export function RewriteRulesEditor({ rules, onSave }: Props) {
           <div key={idx} className="flex gap-1">
             <div className="flex-auto w-34">
               <Input
+                aria-label={`Rewrite source ${idx + 1}`}
+                autoComplete="off"
+                name={`rewrite-source-${idx}`}
+                type="url"
                 value={row.From}
-                placeholder="http://localhost:8080"
+                placeholder="http://localhost:8080…"
                 onChange={(e) => {
                   const updated = rows.map((r, i) =>
                     i === idx ? { ...r, From: e.target.value } : r,
@@ -59,8 +63,12 @@ export function RewriteRulesEditor({ rules, onSave }: Props) {
             </div>
             <div className="flex-auto w-66">
               <Input
+                aria-label={`Rewrite destination ${idx + 1}`}
+                autoComplete="off"
+                name={`rewrite-destination-${idx}`}
+                type="url"
                 value={row.To}
-                placeholder="http://localhost:9090"
+                placeholder="http://localhost:9090…"
                 onChange={(e) => {
                   const updated = rows.map((r, i) =>
                     i === idx ? { ...r, To: e.target.value } : r,
@@ -70,11 +78,13 @@ export function RewriteRulesEditor({ rules, onSave }: Props) {
               />
             </div>
             <Button
+              aria-label={`Remove rewrite rule ${idx + 1}`}
+              title="Remove rewrite rule"
               variant="destructive"
               className="flex-none w-8 cursor-pointer"
               onClick={() => removeRowHandler(idx)}
             >
-              <Trash />
+              <Trash aria-hidden="true" />
             </Button>
           </div>
         ))}

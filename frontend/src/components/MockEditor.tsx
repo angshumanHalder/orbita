@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent } from "./ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
@@ -46,6 +46,9 @@ export const MockEditor = ({
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="flex flex-col overflow-hidden max-w-3xl sm:max-w-3xl max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle>Edit Mock Response</DialogTitle>
+        </DialogHeader>
         <div className="flex items-center gap-2 shrink-0">
           <span className="font-mono text-xs font-semibold">{method}</span>
           <span className="text-xs text-muted-foreground truncate">{path}</span>
@@ -55,17 +58,24 @@ export const MockEditor = ({
             <p className="text-xs text-destructive shrink-0">{jsonError}</p>
           )}
           <Input
+            aria-label="Mock response status"
+            autoComplete="off"
+            inputMode="numeric"
+            name="mock-status"
             value={localStatus}
             type="number"
             onChange={(e) => setLocalStatus(parseInt(e.target.value))}
-            placeholder="http status"
+            placeholder="HTTP status…"
             className="shrink-0"
           />
           <Textarea
+            aria-label="Mock response body"
+            autoComplete="off"
+            name="mock-body"
             value={body}
             onChange={(e) => handleBodyChange(e.target.value)}
             className="font-mono text-xs max-h-100 overflow-y-auto min-h-20 resize-none"
-            placeholder='{"key": "value"}'
+            placeholder='{"key": "value"}…'
           />
           <Button
             className="shrink-0"

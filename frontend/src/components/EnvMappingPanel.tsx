@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
+import { reportError } from "../lib/report-error";
 
 type Props = { onMappingApplied: () => void };
 
@@ -33,13 +34,17 @@ export function EnvMappingPanel({ onMappingApplied }: Props) {
         setEnvNames(envs);
       }
     } catch (err) {
-      console.error("cannot import file");
+      reportError("Could not import the environment file", err);
     }
   };
 
   const handleApplyEnvMapping = async () => {
-    await ApplyEnvMapping(fromEnv, toEnv);
-    onMappingApplied();
+    try {
+      await ApplyEnvMapping(fromEnv, toEnv);
+      onMappingApplied();
+    } catch (err) {
+      reportError("Could not apply the environment mapping", err);
+    }
   };
 
   return (
@@ -48,6 +53,7 @@ export function EnvMappingPanel({ onMappingApplied }: Props) {
         <h3 className="text-sm font-medium text-foreground">Config File</h3>
         <div className="flex items-center gap-2">
           <Input
+            aria-label="Selected environment configuration file"
             value={filePath || "No file selected"}
             readOnly
             className="flex-1 h-7 text-xs font-mono text-muted-foreground cursor-default"
@@ -63,7 +69,7 @@ export function EnvMappingPanel({ onMappingApplied }: Props) {
         </h3>
         <div className="flex items-center gap-2">
           <Select value={fromEnv} onValueChange={(v) => setFromEnv(v ?? "")}>
-            <SelectTrigger className="flex-1">
+            <SelectTrigger aria-label="Source environment" className="flex-1">
               <SelectValue placeholder="From" />
             </SelectTrigger>
             <SelectContent>
@@ -75,7 +81,7 @@ export function EnvMappingPanel({ onMappingApplied }: Props) {
             </SelectContent>
           </Select>
           <Select value={toEnv} onValueChange={(v) => setToEnv(v ?? "")}>
-            <SelectTrigger className="flex-1">
+            <SelectTrigger aria-label="Target environment" className="flex-1">
               <SelectValue placeholder="To" />
             </SelectTrigger>
             <SelectContent>

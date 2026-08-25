@@ -54,6 +54,10 @@ export function ImportEnvConfig(arg1) {
   return window['go']['main']['App']['ImportEnvConfig'](arg1);
 }
 
+export function InstallCA() {
+  return window['go']['main']['App']['InstallCA']();
+}
+
 export function OpenFilePicker() {
   return window['go']['main']['App']['OpenFilePicker']();
 }

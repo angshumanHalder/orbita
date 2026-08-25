@@ -37,9 +37,12 @@ export function PACDomainsPanel() {
     <div className="flex flex-col gap-3 p-2">
       <div className="flex gap-2">
         <Input
+          aria-label="PAC domain"
+          autoComplete="off"
+          name="pac-domain"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="e.g. api.example.com"
+          placeholder="api.example.com…"
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
           className="h-7 text-xs"
         />
@@ -57,8 +60,14 @@ export function PACDomainsPanel() {
               className="flex items-center justify-between px-3 py-1.5 rounded-md bg-muted/50 hover:bg-muted transition-colors"
             >
               <span className="text-xs font-mono text-foreground">{d}</span>
-              <Button variant="ghost" size="icon-sm" onClick={() => handleRemove(d)}>
-                <Trash className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+              <Button
+                aria-label={`Remove ${d}`}
+                title={`Remove ${d}`}
+                variant="ghost"
+                size="icon-sm"
+                onClick={() => handleRemove(d)}
+              >
+                <Trash aria-hidden="true" className="w-3 h-3 text-muted-foreground hover:text-destructive" />
               </Button>
             </div>
           ))}

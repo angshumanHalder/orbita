@@ -121,27 +121,31 @@ func (r *Recorder) Start() error {
 	if r.session != nil {
 		return nil
 	}
-	allocCtx, allocCancel := chromedp.NewRemoteAllocator(context.Background(), "ws://localhost:9222")
-	r.allocCancel = allocCancel
-
+	resp, err := (&http.Client{Timeout: 2 * time.Second}).Get("http://localhost:9222/json")
+	if err != nil {
+		return fmt.Errorf("Chrome debugging is unavailable; open Chrome from Orbita first: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Chrome debugging returned %s", resp.Status)
+	}
 	var tabID string
-	if resp, err := http.Get("http://localhost:9222/json"); err == nil {
-		var tabs []struct {
-			ID   string `json:"id"`
-			URL  string `json:"url"`
-			Type string `json:"type"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&tabs); err != nil {
-			fmt.Println("cdp: failed to decode tabs:", err)
-		}
-		resp.Body.Close()
-		for _, t := range tabs {
-			if t.Type == "page" && isUserPage(t.URL) {
-				tabID = t.ID
-				break
-			}
+	var tabs []struct {
+		ID   string `json:"id"`
+		URL  string `json:"url"`
+		Type string `json:"type"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tabs); err != nil {
+		return fmt.Errorf("read Chrome tabs: %w", err)
+	}
+	for _, t := range tabs {
+		if t.Type == "page" && isUserPage(t.URL) {
+			tabID = t.ID
+			break
 		}
 	}
+	allocCtx, allocCancel := chromedp.NewRemoteAllocator(context.Background(), "ws://localhost:9222")
+	r.allocCancel = allocCancel
 	r.session = &RecordSession{}
 
 	var ctx context.Context

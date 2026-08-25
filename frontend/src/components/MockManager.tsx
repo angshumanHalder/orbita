@@ -5,6 +5,7 @@ import { EventsOn } from "wailsjs/runtime/runtime";
 import { Button } from "./ui/button";
 import { Switch } from "./ui/switch";
 import { MockEditor } from "./MockEditor";
+import { reportError } from "../lib/report-error";
 
 type MockRule = {
   Method: string;
@@ -23,7 +24,7 @@ export function MockManager() {
       const m = await GetMocks();
       setMocks(m ?? []);
     } catch (err) {
-      console.error("unable to load mocks", err);
+      reportError("Could not load mocks", err);
     }
   };
 
@@ -37,14 +38,23 @@ export function MockManager() {
     const updated = mocks.map((m, i) =>
       i === index ? { ...m, Enabled: !m.Enabled } : m,
     );
-    setMocks(updated);
-    await SetMocks(updated);
+    try {
+      await SetMocks(updated);
+      setMocks(updated);
+    } catch (err) {
+      reportError("Could not update the mock", err);
+    }
   };
 
   const handleDelete = async (index: number) => {
+    if (!window.confirm(`Delete mock for “${mocks[index].Path}”?`)) return;
     const updated = mocks.filter((_, i) => i !== index);
-    setMocks(updated);
-    await SetMocks(updated);
+    try {
+      await SetMocks(updated);
+      setMocks(updated);
+    } catch (err) {
+      reportError("Could not delete the mock", err);
+    }
   };
 
   const handleSaveEdit = async (body: string, status: number) => {
@@ -52,9 +62,13 @@ export function MockManager() {
     const updated = mocks.map((m, i) =>
       i === editIndex ? { ...m, Body: body, Status: status } : m,
     );
-    setMocks(updated);
-    await SetMocks(updated);
-    setEditIndex(null);
+    try {
+      await SetMocks(updated);
+      setMocks(updated);
+      setEditIndex(null);
+    } catch (err) {
+      reportError("Could not save the mock", err);
+    }
   };
 
   const editing = editIndex !== null ? mocks[editIndex] : null;
@@ -86,6 +100,7 @@ export function MockManager() {
             <div className="text-xs">{m.Status}</div>
             <div>
               <Switch
+                aria-label={`${m.Enabled ? "Disable" : "Enable"} mock for ${m.Path}`}
                 size="sm"
                 checked={m.Enabled}
                 onCheckedChange={() => handleToggle(i)}
@@ -93,18 +108,22 @@ export function MockManager() {
             </div>
             <div className="flex items-center gap-1">
               <Button
+                aria-label={`Edit mock for ${m.Path}`}
+                title="Edit mock"
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => setEditIndex(i)}
               >
-                <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                <Pencil aria-hidden="true" className="w-3.5 h-3.5 text-muted-foreground" />
               </Button>
               <Button
+                aria-label={`Delete mock for ${m.Path}`}
+                title="Delete mock"
                 variant="ghost"
                 size="icon-sm"
                 onClick={() => handleDelete(i)}
               >
-                <Trash className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
+                <Trash aria-hidden="true" className="w-3.5 h-3.5 text-muted-foreground hover:text-destructive" />
               </Button>
             </div>
           </div>

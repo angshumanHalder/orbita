@@ -48,6 +48,7 @@ Built with [Go](https://go.dev), [Wails v2](https://wails.io), and React.
 
 ![Requests](docs/screenshot-requests.png)
 ![WebSockets](docs/screenshot-websockets.png)
+![Mock editor](docs/screenshot-mocking.png)
 
 ---
 

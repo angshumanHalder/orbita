@@ -47,7 +47,6 @@ export function MockManager() {
   };
 
   const handleDelete = async (index: number) => {
-    if (!window.confirm(`Delete mock for “${mocks[index].Path}”?`)) return;
     const updated = mocks.filter((_, i) => i !== index);
     try {
       await SetMocks(updated);
